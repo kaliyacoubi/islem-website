@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createEmailTemplate, sendEmail } from "@/lib/resend"
+import { createEmailTemplate, sendEmail } from "@/lib/nodemailer"
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +17,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Format d'email invalide" }, { status: 400 })
     }
 
+    // Récupération de l'email de destination depuis les variables d'environnement
+    const emailTo = process.env.EMAIL_TO || "c.inettoyage83@gmail.com"
+    console.log("Email de destination:", emailTo)
+
     // Création du template d'email
     const emailHtml = createEmailTemplate({
       name,
@@ -28,9 +32,7 @@ export async function POST(request: Request) {
       details: details || "Aucun détail fourni",
     })
 
-    // Envoi de l'email à c.inettoyage83@gmail.com
     try {
-      const emailTo = process.env.EMAIL_TO || "c.inettoyage83@gmail.com"
       const result = await sendEmail(emailTo, `Nouvelle demande de devis - ${name}`, emailHtml)
 
       return NextResponse.json({
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
         message: "Votre demande de devis a été envoyée avec succès !",
       })
     } catch (emailError: any) {
-      console.error("Erreur lors de l'envoi de l'email:", emailError)
+      console.error("Erreur détaillée lors de l'envoi de l'email:", emailError)
       return NextResponse.json(
         {
           error: "Une erreur est survenue lors de l'envoi de l'email. Veuillez réessayer plus tard.",

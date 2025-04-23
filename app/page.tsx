@@ -129,12 +129,19 @@ export default function Home() {
         body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Une erreur est survenue")
+      let data
+      try {
+        data = await response.json()
+      } catch (e) {
+        throw new Error("Erreur lors de l'analyse de la réponse")
       }
 
+      if (!response.ok) {
+        const errorMessage = data?.details || data?.error || "Une erreur inconnue est survenue"
+        throw new Error(errorMessage)
+      }
+
+      // Réinitialiser le formulaire
       setFormData({
         service: "",
         name: "",
@@ -148,6 +155,7 @@ export default function Home() {
       setSubmitSuccess(true)
       setTimeout(() => setSubmitSuccess(false), 5000)
     } catch (error) {
+      console.error("Erreur lors de la soumission du formulaire:", error)
       setSubmitError(error instanceof Error ? error.message : "Une erreur est survenue")
     } finally {
       setIsSubmitting(false)

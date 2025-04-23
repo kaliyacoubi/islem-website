@@ -60,7 +60,8 @@
     "zod": "^3.24.1",
     "@emotion/is-prop-valid": "latest",
     "framer-motion": "latest",
-    "resend": "latest"
+    "resend": "latest",
+    "nodemailer": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

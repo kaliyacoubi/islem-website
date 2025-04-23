@@ -1,14 +1,30 @@
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
-// Initialiser Resend avec la clé API
-let resendApiKey = process.env.RESEND_API_KEY
-// Si nous sommes en production, assurons-nous que la clé API est correcte
-if (!resendApiKey && typeof window === "undefined") {
-  console.warn("ATTENTION: Clé API Resend non définie, utilisation de la clé de secours")
-  resendApiKey = "re_f9SmjVny_N5KGo8tkxWjoqKx6bt9o2KnK"
+// Configuration du transporteur NodeMailer
+let transporter: nodemailer.Transporter
+
+// Initialisation du transporteur
+export const initTransporter = () => {
+  if (transporter) return transporter
+
+  const user = process.env.EMAIL_USER
+  const pass = process.env.EMAIL_PASS
+
+  if (!user || !pass) {
+    console.error("Identifiants Gmail manquants pour NodeMailer")
+    throw new Error("Configuration email incomplète")
+  }
+
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false, // Important pour certains environnements de production
+    },
+  })
+
+  return transporter
 }
-
-const resend = new Resend(resendApiKey || "")
 
 // Fonction pour créer le template HTML de l'email
 export const createEmailTemplate = (data: any) => {
@@ -28,11 +44,11 @@ export const createEmailTemplate = (data: any) => {
 
   // Template optimisé pour les clients de messagerie mobile
   return `
-    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-    <html xmlns="http://www.w3.org/1999/xhtml">
+    <!DOCTYPE html>
+    <html>
     <head>
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Nouvelle demande de devis - CI NETTOYAGE</title>
     </head>
     <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f9f9f9;">
@@ -128,46 +144,26 @@ export const createEmailTemplate = (data: any) => {
   `
 }
 
-// Fonction pour envoyer un email via Resend
+// Fonction pour envoyer un email via NodeMailer
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
-    if (!resendApiKey) {
-      throw new Error("Clé API Resend non définie")
-    }
+    const transporter = initTransporter()
 
-    console.log("Tentative d'envoi d'email à:", to)
-    const { data, error } = await resend.emails.send({
-      from: "CI NETTOYAGE <onboarding@resend.dev>", // Utilisez votre domaine vérifié si disponible
-      to: [to], // Utilisez l'adresse email fournie en paramètre
+    // Définir les options d'email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: to,
       subject: subject,
       html: html,
-      reply_to: to, // Pour que les réponses aillent à cette adresse
-    })
-
-    if (error) {
-      console.error("Erreur Resend:", error)
-      throw new Error(`Erreur Resend: ${error.message}`)
     }
 
-    console.log(`Email envoyé avec succès à ${to}: ${data?.id}`)
-    return { success: true, id: data?.id }
-  } catch (error: any) {
+    // Envoyer l'email
+    const info = await transporter.sendMail(mailOptions)
+
+    console.log(`Email envoyé avec succès: ${info.messageId}`)
+    return { success: true, id: info.messageId }
+  } catch (error) {
     console.error("Erreur lors de l'envoi de l'email:", error)
-
-    // Solution de secours pour les environnements de production
-    if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
-      console.log("En production, tentative d'envoi via solution alternative...")
-      try {
-        // Vous pourriez implémenter ici une solution de secours comme une API simple
-        console.log("Email qui aurait été envoyé à:", to)
-        console.log("Sujet:", subject)
-        // Ne pas logger le HTML complet pour éviter de surcharger les logs
-        return { success: true, id: "fallback-method" }
-      } catch (fallbackError) {
-        console.error("Erreur avec la solution de secours:", fallbackError)
-      }
-    }
-
     throw error
   }
 }
