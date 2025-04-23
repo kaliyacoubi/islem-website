@@ -1,8 +1,34 @@
 import { NextResponse } from "next/server"
-import { createEmailTemplate, sendEmail } from "@/lib/nodemailer"
+import { createEmailTemplate, sendEmail } from "@/lib/resend"
 
 export async function POST(request: Request) {
   try {
+    // Vérifier que la clé API Resend est définie
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY n'est pas définie dans les variables d'environnement")
+      return NextResponse.json(
+        {
+          error: "Configuration du serveur d'email incomplète",
+          details: "La clé API Resend n'est pas configurée",
+        },
+        { status: 500 },
+      )
+    }
+
+    // Vérifier que l'email de destination est défini
+    const emailTo = process.env.EMAIL_TO
+    if (!emailTo) {
+      console.error("EMAIL_TO n'est pas défini dans les variables d'environnement")
+      return NextResponse.json(
+        {
+          error: "Configuration du serveur d'email incomplète",
+          details: "L'adresse email de destination n'est pas configurée",
+        },
+        { status: 500 },
+      )
+    }
+
+    // Récupérer et valider les données du formulaire
     const data = await request.json()
     const { name, email, phone, service, date, address, details } = data
 
@@ -17,9 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Format d'email invalide" }, { status: 400 })
     }
 
-    // Récupération de l'email de destination depuis les variables d'environnement
-    const emailTo = process.env.EMAIL_TO || "c.inettoyage83@gmail.com"
-    console.log("Email de destination:", emailTo)
+    console.log("Préparation de l'envoi d'email à:", emailTo)
 
     // Création du template d'email
     const emailHtml = createEmailTemplate({
@@ -32,6 +56,7 @@ export async function POST(request: Request) {
       details: details || "Aucun détail fourni",
     })
 
+    // Envoi de l'email
     try {
       const result = await sendEmail(emailTo, `Nouvelle demande de devis - ${name}`, emailHtml)
 
@@ -41,10 +66,21 @@ export async function POST(request: Request) {
       })
     } catch (emailError: any) {
       console.error("Erreur détaillée lors de l'envoi de l'email:", emailError)
+
+      // Fournir des détails spécifiques pour les erreurs Resend courantes
+      let errorDetails = emailError.message || "Erreur inconnue"
+
+      if (errorDetails.includes("not verified")) {
+        errorDetails =
+          "L'adresse email de destination n'est pas vérifiée dans Resend. Veuillez vérifier votre compte Resend."
+      } else if (errorDetails.includes("rate limit")) {
+        errorDetails = "Limite de taux d'envoi dépassée. Veuillez réessayer plus tard."
+      }
+
       return NextResponse.json(
         {
-          error: "Une erreur est survenue lors de l'envoi de l'email. Veuillez réessayer plus tard.",
-          details: emailError.message || "Erreur inconnue",
+          error: "Une erreur est survenue lors de l'envoi de l'email",
+          details: errorDetails,
         },
         { status: 500 },
       )

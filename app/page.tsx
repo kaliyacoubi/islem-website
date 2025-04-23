@@ -123,6 +123,7 @@ export default function Home() {
     setSubmitError("")
 
     try {
+      console.log("Envoi du formulaire...")
       const response = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -818,7 +819,6 @@ export default function Home() {
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="relative backdrop-blur-sm border border-white/10 rounded-2xl bg-gradient-to-br from-white/5 to-transparent p-8"
               >

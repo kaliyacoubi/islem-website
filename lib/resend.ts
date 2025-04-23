@@ -1,14 +1,15 @@
 import { Resend } from "resend"
 
 // Initialiser Resend avec la clé API
-let resendApiKey = process.env.RESEND_API_KEY
-// Si nous sommes en production, assurons-nous que la clé API est correcte
-if (!resendApiKey && typeof window === "undefined") {
-  console.warn("ATTENTION: Clé API Resend non définie, utilisation de la clé de secours")
-  resendApiKey = "re_f9SmjVny_N5KGo8tkxWjoqKx6bt9o2KnK"
+const resendApiKey = process.env.RESEND_API_KEY
+
+// Vérifier que la clé API est définie
+if (!resendApiKey) {
+  console.warn("ATTENTION: Clé API Resend non définie dans les variables d'environnement")
 }
 
-const resend = new Resend(resendApiKey || "")
+// Créer l'instance Resend
+const resend = new Resend(resendApiKey)
 
 // Fonction pour créer le template HTML de l'email
 export const createEmailTemplate = (data: any) => {
@@ -136,12 +137,12 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
     }
 
     console.log("Tentative d'envoi d'email à:", to)
+
     const { data, error } = await resend.emails.send({
-      from: "CI NETTOYAGE <onboarding@resend.dev>", // Utilisez votre domaine vérifié si disponible
-      to: [to], // Utilisez l'adresse email fournie en paramètre
+      from: "CI NETTOYAGE <onboarding@resend.dev>",
+      to: [to],
       subject: subject,
       html: html,
-      reply_to: to, // Pour que les réponses aillent à cette adresse
     })
 
     if (error) {
@@ -153,21 +154,6 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
     return { success: true, id: data?.id }
   } catch (error: any) {
     console.error("Erreur lors de l'envoi de l'email:", error)
-
-    // Solution de secours pour les environnements de production
-    if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
-      console.log("En production, tentative d'envoi via solution alternative...")
-      try {
-        // Vous pourriez implémenter ici une solution de secours comme une API simple
-        console.log("Email qui aurait été envoyé à:", to)
-        console.log("Sujet:", subject)
-        // Ne pas logger le HTML complet pour éviter de surcharger les logs
-        return { success: true, id: "fallback-method" }
-      } catch (fallbackError) {
-        console.error("Erreur avec la solution de secours:", fallbackError)
-      }
-    }
-
     throw error
   }
 }

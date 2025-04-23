@@ -16,7 +16,9 @@ export const initTransporter = () => {
   }
 
   transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // Utiliser SSL
     auth: { user, pass },
     tls: {
       rejectUnauthorized: false, // Important pour certains environnements de production
